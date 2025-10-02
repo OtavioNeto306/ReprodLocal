@@ -27,8 +27,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
-  const progressUpdateInterval = useRef<NodeJS.Timeout | null>(null);
-  const hideControlsTimeout = useRef<NodeJS.Timeout | null>(null);
+  const progressUpdateInterval = useRef<number | null>(null);
+  const hideControlsTimeout = useRef<number | null>(null);
 
   useEffect(() => {
     if (video) {

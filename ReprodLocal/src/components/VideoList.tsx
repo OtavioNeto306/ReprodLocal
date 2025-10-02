@@ -64,9 +64,7 @@ export const VideoList: React.FC<VideoListProps> = ({
     }
   };
 
-  const updateVideoProgress = (video: Video, progress: VideoProgress) => {
-    setVideoProgresses(prev => new Map(prev.set(video.id, progress)));
-  };
+  // Função removida pois não estava sendo utilizada
 
   const filteredVideos = videos.filter(video =>
     video.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -120,7 +118,7 @@ export const VideoList: React.FC<VideoListProps> = ({
     return (
       <div className="video-list-container">
         <div className="module-header">
-          <h2>{module.name}</h2>
+          <h2>{module?.name || 'Carregando...'}</h2>
         </div>
         <div className="loading-videos">
           <div className="loading-spinner">⏳</div>

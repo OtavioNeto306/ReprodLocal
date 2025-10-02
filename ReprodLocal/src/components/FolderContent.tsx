@@ -64,16 +64,16 @@ const FolderContent: React.FC<FolderContentProps> = ({
   return (
     <div className="folder-content-container">
       {/* Informações da seleção */}
-      {content.mediaFiles.length > 0 && (
+      {content.media_files.length > 0 && (
         <div className="selection-info">
           <div className="selection-stats">
-            <span>{selectedFiles.size} de {content.mediaFiles.length} arquivos selecionados</span>
+            <span>{selectedFiles.size} de {content.media_files.length} arquivos selecionados</span>
           </div>
           <div className="selection-actions">
             <button
               className="select-all-btn"
               onClick={onSelectAll}
-              disabled={selectedFiles.size === content.mediaFiles.length}
+              disabled={selectedFiles.size === content.media_files.length}
             >
               Selecionar Todos
             </button>
@@ -89,11 +89,11 @@ const FolderContent: React.FC<FolderContentProps> = ({
       )}
 
       {/* Subpastas */}
-      {content.subFolders.length > 0 && (
+      {content.subfolders.length > 0 && (
         <div className="subfolders-section">
-          <h4>📁 Pastas ({content.subFolders.length})</h4>
-          <div className="subfolders-grid">
-            {content.subFolders.map((folder: SubFolder) => (
+          <h4>📁 Pastas ({content.subfolders.length})</h4>
+          <div className="subfolders-list">
+            {content.subfolders.map((folder: SubFolder) => (
               <div
                 key={folder.path}
                 className="subfolder-item"
@@ -101,11 +101,11 @@ const FolderContent: React.FC<FolderContentProps> = ({
               >
                 <div className="folder-icon">📁</div>
                 <div className="folder-info">
-                  <div className="folder-name">{folder.name}</div>
-                  <div className="folder-count">
-                    {folder.mediaCount} arquivo{folder.mediaCount !== 1 ? 's' : ''} de mídia
+                    <div className="folder-name">{folder.name}</div>
+                    <div className="folder-stats">
+                      {folder.media_count} arquivo{folder.media_count !== 1 ? 's' : ''} de mídia
+                    </div>
                   </div>
-                </div>
               </div>
             ))}
           </div>
@@ -113,11 +113,11 @@ const FolderContent: React.FC<FolderContentProps> = ({
       )}
 
       {/* Arquivos de mídia */}
-      {content.mediaFiles.length > 0 && (
+      {content.media_files.length > 0 && (
         <div className="media-files-section">
-          <h4>🎬 Arquivos de Mídia ({content.mediaFiles.length})</h4>
+          <h4>🎬 Arquivos de Mídia ({content.media_files.length})</h4>
           <div className="media-files-list">
-            {content.mediaFiles.map((file: MediaFile) => (
+            {content.media_files.map((file: MediaFile) => (
               <div
                 key={file.path}
                 className={`media-file-item ${selectedFiles.has(file.path) ? 'selected' : ''}`}
@@ -131,7 +131,7 @@ const FolderContent: React.FC<FolderContentProps> = ({
                 </div>
                 
                 <div className="file-icon">
-                  {getFileIcon(file.fileType)}
+                  {getFileIcon(file.file_type)}
                 </div>
                 
                 <div
@@ -140,7 +140,7 @@ const FolderContent: React.FC<FolderContentProps> = ({
                 >
                   <div className="file-name">{file.name}</div>
                   <div className="file-details">
-                    <span className="file-type">{file.fileType.toUpperCase()}</span>
+                    <span className="file-type">{file.file_type.toUpperCase()}</span>
                     <span className="file-size">{formatFileSize(file.size)}</span>
                     {file.duration && (
                       <span className="file-duration">{formatDuration(file.duration)}</span>
@@ -162,7 +162,7 @@ const FolderContent: React.FC<FolderContentProps> = ({
       )}
 
       {/* Estado vazio */}
-      {content.subFolders.length === 0 && content.mediaFiles.length === 0 && (
+      {content.subfolders.length === 0 && content.media_files.length === 0 && (
         <div className="empty-folder">
           <div className="empty-icon">📂</div>
           <h3>Pasta Vazia</h3>

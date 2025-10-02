@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Course, Module, coursesApi, utils } from '../api/api';
+import { Course, Module, coursesApi } from '../api/api';
 import './Sidebar.css';
 
 interface SidebarProps {

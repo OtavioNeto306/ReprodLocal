@@ -28,6 +28,8 @@ export const FolderBrowserPage: React.FC<FolderBrowserPageProps> = ({ onNavigate
       path: filePath,
       duration: 0, // Será determinado pelo player
       module_id: 'folder-browser',
+      course_id: 'folder-browser',
+      order_index: 0,
       order: 0,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -49,6 +51,8 @@ export const FolderBrowserPage: React.FC<FolderBrowserPageProps> = ({ onNavigate
       path: firstFile,
       duration: 0,
       module_id: 'folder-browser',
+      course_id: 'folder-browser',
+      order_index: 0,
       order: 0,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -59,7 +63,7 @@ export const FolderBrowserPage: React.FC<FolderBrowserPageProps> = ({ onNavigate
     setCurrentIndex(0);
   };
 
-  const handleVideoComplete = (video: Video) => {
+  const handleVideoComplete = () => {
     // Avançar para o próximo vídeo na playlist
     if (currentIndex < playlist.length - 1) {
       const nextIndex = currentIndex + 1;
@@ -71,6 +75,8 @@ export const FolderBrowserPage: React.FC<FolderBrowserPageProps> = ({ onNavigate
         path: nextFile,
         duration: 0,
         module_id: 'folder-browser',
+        course_id: 'folder-browser',
+        order_index: nextIndex,
         order: nextIndex,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -84,7 +90,7 @@ export const FolderBrowserPage: React.FC<FolderBrowserPageProps> = ({ onNavigate
     }
   };
 
-  const handleProgressUpdate = (video: Video, progress: any) => {
+  const handleProgressUpdate = (progress: any) => {
     // Atualizar progresso se necessário
     console.log(`Progresso: ${progress.current_time}s`);
   };
@@ -108,6 +114,8 @@ export const FolderBrowserPage: React.FC<FolderBrowserPageProps> = ({ onNavigate
         path: prevFile,
         duration: 0,
         module_id: 'folder-browser',
+        course_id: 'folder-browser',
+        order_index: prevIndex,
         order: prevIndex,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -129,6 +137,8 @@ export const FolderBrowserPage: React.FC<FolderBrowserPageProps> = ({ onNavigate
         path: nextFile,
         duration: 0,
         module_id: 'folder-browser',
+        course_id: 'folder-browser',
+        order_index: nextIndex,
         order: nextIndex,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()

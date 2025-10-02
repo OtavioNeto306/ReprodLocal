@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { FolderContent, MediaFile, SubFolder, folderApi, utils } from '../api/api';
+import React, { useState } from 'react';
+import { FolderContent, SubFolder, folderApi } from '../api/api';
 import './FolderBrowser.css';
 
 interface FolderBrowserProps {
@@ -18,7 +18,6 @@ export const FolderBrowser: React.FC<FolderBrowserProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pathHistory, setPathHistory] = useState<string[]>([]);
-  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
 
   const selectFolder = async () => {
     try {
@@ -46,7 +45,6 @@ export const FolderBrowser: React.FC<FolderBrowserProps> = ({
       
       const content = await folderApi.scanFolderContent(path);
       setFolderContent(content);
-      setSelectedFiles(new Set());
       
       // Notificar a Home sobre a mudança de pasta
       if (onFolderChange) {
@@ -85,39 +83,7 @@ export const FolderBrowser: React.FC<FolderBrowserProps> = ({
     }
   };
 
-  const toggleFileSelection = (filePath: string) => {
-    const newSelected = new Set(selectedFiles);
-    if (newSelected.has(filePath)) {
-      newSelected.delete(filePath);
-    } else {
-      newSelected.add(filePath);
-    }
-    setSelectedFiles(newSelected);
-  };
 
-  const selectAllFiles = () => {
-    if (!folderContent) return;
-    const allPaths = new Set(folderContent.media_files.map(f => f.path));
-    setSelectedFiles(allPaths);
-  };
-
-  const clearSelection = () => {
-    setSelectedFiles(new Set());
-  };
-
-  const playSelected = () => {
-    if (!folderContent || selectedFiles.size === 0) return;
-    
-    const selectedMedia = folderContent.media_files.filter(f => selectedFiles.has(f.path));
-    if (selectedMedia.length > 0) {
-      const filePaths = selectedMedia.map(f => f.path);
-      if (filePaths.length === 1) {
-        onPlayFile(filePaths[0]);
-      } else {
-        onPlayPlaylist(filePaths);
-      }
-    }
-  };
 
   const playAll = async () => {
     if (!currentPath) return;
@@ -141,16 +107,7 @@ export const FolderBrowser: React.FC<FolderBrowserProps> = ({
     }
   };
 
-  const formatFileSize = (bytes: number): string => {
-    return utils.formatFileSize(bytes);
-  };
 
-  const getFileIcon = (fileType: string): string => {
-    const type = fileType.toLowerCase();
-    if (['mp4', 'mkv', 'avi', 'mov'].includes(type)) return '🎬';
-    if (['mp3', 'wav', 'flac', 'aac'].includes(type)) return '🎵';
-    return '📄';
-  };
 
   if (!currentPath) {
     return (
@@ -207,7 +164,7 @@ export const FolderBrowser: React.FC<FolderBrowserProps> = ({
           >
             📁 Selecionar Pasta
           </button>
-          {folderContent?.media_files.length > 0 && (
+          {folderContent?.media_files && folderContent.media_files.length > 0 && (
             <button 
               className="action-btn primary"
               onClick={playAll}

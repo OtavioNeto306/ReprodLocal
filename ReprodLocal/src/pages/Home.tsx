@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Course, Module, Video, VideoProgress, FolderContent, MediaFile } from '../api/api';
+import { Video, VideoProgress, FolderContent, MediaFile } from '../api/api';
 import { FolderBrowser } from '../components/FolderBrowser';
 import { VideoList } from '../components/VideoList';
 import { VideoPlayer } from '../components/VideoPlayer';
@@ -30,8 +30,8 @@ export const Home: React.FC<HomeProps> = () => {
     // Converter MediaFile[] para Video[]
     const videos: Video[] = folderContent.media_files.map((file: MediaFile, index: number) => ({
       id: `${folderPath}_${index}`,
-      module_id: 0,
-      course_id: 0,
+      module_id: '0',
+      course_id: '0',
       name: file.name,
       path: file.path,
       duration: file.duration || 0,

@@ -25,12 +25,15 @@ export interface Module {
 
 export interface Video {
   id: string;
-  module_id: string;
-  course_id: string;
+  module_id: string | number;
+  course_id: string | number;
   name: string;
   path: string;
   duration?: number;
   order_index: number;
+  order?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface VideoProgress {
