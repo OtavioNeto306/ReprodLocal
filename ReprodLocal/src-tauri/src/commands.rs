@@ -492,6 +492,15 @@ pub async fn create_user_note(
     note_type: String,
     state: State<'_, AppState>
 ) -> Result<String, String> {
+    println!("🔍 Backend create_user_note - Parâmetros recebidos:");
+    println!("   video_id: {}", video_id);
+    println!("   course_id: {}", course_id);
+    println!("   module_id: {}", module_id);
+    println!("   timestamp: {}", timestamp);
+    println!("   title: {}", title);
+    println!("   content: {}", content);
+    println!("   note_type: {}", note_type);
+
     let db = state.db.lock().map_err(|e| format!("Erro ao acessar banco: {}", e))?;
     
     let note = UserNote {
@@ -520,6 +529,7 @@ pub async fn create_user_note(
     };
     db.log_activity(&activity).ok(); // Não falhar se o log der erro
     
+    println!("✅ Backend create_user_note - Anotação criada com sucesso! ID: {}", note.id);
     Ok(note.id)
 }
 

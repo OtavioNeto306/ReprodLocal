@@ -52,6 +52,28 @@ export interface VideoStatus {
   volume: number;
 }
 
+export interface UserNote {
+  id: string;
+  video_id: string;
+  course_id: string;
+  module_id: string;
+  timestamp: number;
+  title: string;
+  content: string;
+  note_type: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VideoBookmark {
+  id: string;
+  video_id: string;
+  timestamp: number;
+  title: string;
+  description: string;
+  created_at: string;
+}
+
 export interface MediaFile {
   name: string;
   path: string;
@@ -495,6 +517,117 @@ export const playerApi = {
     return new Promise(resolve => {
       setTimeout(() => resolve({ ...mockPlayerStatus }), 100);
     });
+  },
+
+  // ========== FUNÇÕES PARA ANOTAÇÕES ==========
+  async createNote(note: Omit<UserNote, 'id' | 'created_at' | 'updated_at'>): Promise<string> {
+    const params = {
+      video_id: note.video_id,
+      course_id: note.course_id,
+      module_id: note.module_id,
+      timestamp: note.timestamp,
+      title: note.title,
+      content: note.content,
+      note_type: note.note_type
+    };
+
+    console.log('🔍 API createNote - Parâmetros enviados:', params);
+
+    try {
+      await waitForTauri();
+      const result = await invoke('create_user_note', params);
+      console.log('✅ API createNote - Resultado:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ API createNote - Erro:', error);
+      throw error;
+    }
+  },
+
+  async updateNote(noteId: string, title: string, content: string): Promise<void> {
+    try {
+      await waitForTauri();
+      await invoke('update_user_note', { note_id: noteId, title, content });
+    } catch (error) {
+      console.warn('Erro ao atualizar anotação:', error);
+      throw error;
+    }
+  },
+
+  async deleteNote(noteId: string): Promise<void> {
+    try {
+      await waitForTauri();
+      await invoke('delete_user_note', { note_id: noteId });
+    } catch (error) {
+      console.warn('Erro ao deletar anotação:', error);
+      throw error;
+    }
+  },
+
+  async getNotesByVideo(videoId: string): Promise<UserNote[]> {
+    try {
+      await waitForTauri();
+      return await invoke('get_notes_by_video', { video_id: videoId });
+    } catch (error) {
+      console.warn('Erro ao buscar anotações do vídeo:', error);
+      return [];
+    }
+  },
+
+  async getNotesByCourse(courseId: string): Promise<UserNote[]> {
+    try {
+      await waitForTauri();
+      return await invoke('get_notes_by_course', { course_id: courseId });
+    } catch (error) {
+      console.warn('Erro ao buscar anotações do curso:', error);
+      return [];
+    }
+  },
+
+  async getAllNotes(): Promise<UserNote[]> {
+    try {
+      await waitForTauri();
+      return await invoke('get_all_notes');
+    } catch (error) {
+      console.warn('Erro ao buscar todas as anotações:', error);
+      return [];
+    }
+  },
+
+  // ========== FUNÇÕES PARA BOOKMARKS ==========
+  async createBookmark(videoId: string, timestamp: number, title: string, description: string): Promise<string> {
+    try {
+      await waitForTauri();
+      return await invoke('create_video_bookmark', {
+        video_id: videoId,
+        timestamp,
+        title,
+        description
+      });
+    } catch (error) {
+      console.warn('Erro ao criar bookmark:', error);
+      throw error;
+    }
+  },
+
+  async deleteBookmark(bookmarkId: string): Promise<void> {
+    try {
+      await waitForTauri();
+      await invoke('delete_video_bookmark', { bookmark_id: bookmarkId });
+    } catch (error) {
+      console.warn('Erro ao deletar bookmark:', error);
+      throw error;
+    }
+  },
+
+  async getVideoBookmarks(videoId: string): Promise<VideoBookmark[]> {
+    try {
+      await waitForTauri();
+      return await invoke('get_video_bookmarks', { video_id: videoId });
+    } catch (error) {
+      console.warn('Erro ao buscar bookmarks do vídeo:', error);
+      return [];
+    }
   }
 };
 

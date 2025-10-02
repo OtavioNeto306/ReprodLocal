@@ -1,0 +1,354 @@
+.video-notes {
+  background: #1a1a1a;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 16px;
+  color: #ffffff;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.notes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #333;
+  padding-bottom: 12px;
+}
+
+.notes-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.tab-button {
+  background: #2a2a2a;
+  border: 1px solid #444;
+  color: #ffffff;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+.tab-button:hover {
+  background: #3a3a3a;
+  border-color: #555;
+}
+
+.tab-button.active {
+  background: #007acc;
+  border-color: #007acc;
+  color: #ffffff;
+}
+
+.add-button {
+  background: #28a745;
+  border: none;
+  color: #ffffff;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  font-size: 14px;
+}
+
+.add-button:hover {
+  background: #218838;
+}
+
+.add-button:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+.notes-content {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* Formulários */
+.note-form,
+.bookmark-form {
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.note-form h4,
+.bookmark-form h4 {
+  margin: 0 0 12px 0;
+  color: #007acc;
+  font-size: 16px;
+}
+
+.note-form input,
+.note-form select,
+.note-form textarea,
+.bookmark-form input,
+.bookmark-form textarea {
+  width: 100%;
+  background: #1a1a1a;
+  border: 1px solid #555;
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.note-form input:focus,
+.note-form select:focus,
+.note-form textarea:focus,
+.bookmark-form input:focus,
+.bookmark-form textarea:focus {
+  outline: none;
+  border-color: #007acc;
+  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+}
+
+.note-form textarea,
+.bookmark-form textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.save-button {
+  background: #28a745;
+  border: none;
+  color: #ffffff;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.save-button:hover {
+  background: #218838;
+}
+
+.cancel-button {
+  background: #6c757d;
+  border: none;
+  color: #ffffff;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.cancel-button:hover {
+  background: #5a6268;
+}
+
+/* Listas */
+.notes-list,
+.bookmarks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Items de anotação */
+.note-item {
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 12px;
+  transition: all 0.2s ease;
+}
+
+.note-item:hover {
+  border-color: #555;
+  background: #2d2d2d;
+}
+
+.note-item.important {
+  border-left: 4px solid #ffc107;
+}
+
+.note-item.question {
+  border-left: 4px solid #17a2b8;
+}
+
+.note-item.summary {
+  border-left: 4px solid #28a745;
+}
+
+.note-item.general {
+  border-left: 4px solid #6c757d;
+}
+
+.note-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.note-time,
+.bookmark-time {
+  color: #007acc;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.note-time:hover,
+.bookmark-time:hover {
+  color: #0099ff;
+  text-decoration: underline;
+}
+
+.note-type {
+  font-size: 16px;
+}
+
+.note-title,
+.bookmark-title {
+  margin: 0 0 8px 0;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.note-content,
+.bookmark-description {
+  margin: 0 0 12px 0;
+  color: #cccccc;
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.note-footer,
+.bookmark-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.note-date,
+.bookmark-date {
+  color: #888;
+  font-size: 11px;
+}
+
+.note-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.edit-button,
+.delete-button {
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+.edit-button:hover {
+  background: #3a3a3a;
+  color: #007acc;
+}
+
+.delete-button:hover {
+  background: #3a3a3a;
+  color: #dc3545;
+}
+
+/* Items de bookmark */
+.bookmark-item {
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 12px;
+  border-left: 4px solid #007acc;
+  transition: all 0.2s ease;
+}
+
+.bookmark-item:hover {
+  border-color: #555;
+  background: #2d2d2d;
+}
+
+.bookmark-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+/* Estado vazio */
+.empty-state {
+  text-align: center;
+  padding: 32px 16px;
+  color: #888;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Scrollbar personalizada */
+.video-notes::-webkit-scrollbar,
+.notes-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.video-notes::-webkit-scrollbar-track,
+.notes-content::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+.video-notes::-webkit-scrollbar-thumb,
+.notes-content::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 3px;
+}
+
+.video-notes::-webkit-scrollbar-thumb:hover,
+.notes-content::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .notes-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+  
+  .notes-tabs {
+    justify-content: center;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+  }
+  
+  .note-footer,
+  .bookmark-footer {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+}

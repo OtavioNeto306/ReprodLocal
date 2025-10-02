@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { Video, VideoProgress, videosApi, utils } from '../api/api';
+import VideoNotes from './VideoNotes';
 import './VideoPlayer.css';
 
 interface VideoPlayerProps {
@@ -25,6 +26,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [isMarkingComplete, setIsMarkingComplete] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
@@ -147,7 +149,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         
         // Salvar progresso no banco de dados se o vídeo estiver carregado
         if (video && videoDuration > 0) {
-          const completed = seekTime >= videoDuration * 0.95;
+          // Só marcar como concluído automaticamente se não foi marcado manualmente
+          const autoCompleted = seekTime >= videoDuration * 0.95;
+          const shouldMarkCompleted = autoCompleted && !progress?.completed;
+          
+          // Manter o status atual de conclusão se foi marcado manualmente
+          const completed = progress?.completed || shouldMarkCompleted;
+          
           await videosApi.updateVideoProgress(
             video.id,
             seekTime,
@@ -352,7 +360,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               // Salvar progresso a cada 5 segundos para não sobrecarregar
               if (Math.floor(currentVideoTime) % 5 === 0) {
                 try {
-                  const completed = currentVideoTime >= videoDuration * 0.95;
+                  // Só marcar como concluído automaticamente se não foi marcado manualmente
+                  // e se chegou ao final do vídeo (95%)
+                  const autoCompleted = currentVideoTime >= videoDuration * 0.95;
+                  const shouldMarkCompleted = autoCompleted && !progress?.completed;
+                  
+                  // Manter o status atual de conclusão se foi marcado manualmente
+                  const completed = progress?.completed || shouldMarkCompleted;
+                  
                   await videosApi.updateVideoProgress(
                     video.id,
                     currentVideoTime,
@@ -372,7 +387,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   setProgress(updatedProgress);
                   onProgressUpdate?.(video, updatedProgress);
                   
-                  if (completed && !progress?.completed) {
+                  if (shouldMarkCompleted) {
                     onVideoComplete?.(video);
                   }
                 } catch (error) {
@@ -489,6 +504,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
             <button 
               className="control-button"
+              onClick={() => setShowNotes(!showNotes)}
+              title={showNotes ? 'Ocultar anotações' : 'Mostrar anotações'}
+            >
+              📝
+            </button>
+
+            <button 
+              className="control-button"
               onClick={toggleFullscreen}
             >
               {isFullscreen ? '🗗' : '⛶'}
@@ -510,6 +533,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             </span>
           </div>
         </div>
+      )}
+
+      {showNotes && (
+        <VideoNotes 
+          videoId={video.id} 
+          currentTime={currentTime}
+          onSeek={handleSeek}
+        />
       )}
     </div>
   );
