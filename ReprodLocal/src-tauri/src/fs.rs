@@ -45,6 +45,8 @@ impl<'a> FileSystemScanner<'a> {
                     }
                     Err(e) => {
                         println!("❌ Erro ao escanear diretório {}: {}", path.display(), e);
+                        println!("🔍 Detalhes do erro: {:?}", e);
+                        // Continua para o próximo diretório em vez de parar
                     }
                 }
             } else {
@@ -109,6 +111,82 @@ impl<'a> FileSystemScanner<'a> {
         self.scan_course_content(&course_id, course_path)?;
 
         Ok(course)
+    }
+
+    fn create_root_course(&self, course_path: &Path, course_name: &str) -> Result<Course> {
+        let course_id = Uuid::new_v4().to_string();
+        let course = Course {
+            id: course_id.clone(),
+            name: course_name.to_string(),
+            path: course_path.to_string_lossy().to_string(),
+            created_at: Utc::now(),
+            last_accessed: None,
+        };
+
+        // Salva o curso no banco
+        self.db.insert_course(&course)?;
+
+        // Escaneia vídeos diretamente na pasta raiz
+        self.scan_root_videos(&course_id, course_path)?;
+
+        Ok(course)
+    }
+
+    fn scan_root_videos(&self, course_id: &str, course_path: &Path) -> Result<()> {
+        println!("🎬 Escaneando vídeos na pasta raiz: {}", course_path.display());
+        
+        let mut videos_found = 0;
+        let mut files_scanned = 0;
+
+        // Cria um módulo padrão para os vídeos da raiz
+        let module_id = Uuid::new_v4().to_string();
+        let module = Module {
+            id: module_id.clone(),
+            course_id: course_id.to_string(),
+            name: "Vídeos".to_string(),
+            path: course_path.to_string_lossy().to_string(),
+            order_index: 0,
+        };
+        self.db.insert_module(&module)?;
+
+        for entry in std::fs::read_dir(course_path)? {
+            let entry = entry?;
+            let path = entry.path();
+            
+            if path.is_file() {
+                files_scanned += 1;
+                println!("📄 Arquivo encontrado: {}", path.display());
+                
+                if self.is_video_file(&path) {
+                    videos_found += 1;
+                    println!("🎥 Vídeo detectado: {}", path.display());
+                    
+                    let video_name = path
+                        .file_stem()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("Vídeo")
+                        .to_string();
+
+                    let video = Video {
+                        id: Uuid::new_v4().to_string(),
+                        module_id: module_id.clone(),
+                        course_id: course_id.to_string(),
+                        name: video_name,
+                        path: path.to_string_lossy().to_string(),
+                        duration: None,
+                        order_index: videos_found as i32 - 1,
+                    };
+
+                    self.db.insert_video(&video)?;
+                }
+            }
+        }
+
+        println!("📊 Escaneamento de vídeos da raiz concluído:");
+        println!("   - Arquivos escaneados: {}", files_scanned);
+        println!("   - Vídeos encontrados: {}", videos_found);
+
+        Ok(())
     }
 
     fn scan_course_content(&self, course_id: &str, course_path: &Path) -> Result<()> {
@@ -186,7 +264,15 @@ impl<'a> FileSystemScanner<'a> {
                 order_index: module_order,
             };
 
-            self.db.insert_module(&module)?;
+            println!("🔧 Tentando inserir módulo: {} (course_id: {})", module.name, module.course_id);
+            match self.db.insert_module(&module) {
+                Ok(_) => println!("✅ Módulo inserido com sucesso: {}", module.name),
+                Err(e) => {
+                    println!("❌ Erro ao inserir módulo {}: {}", module.name, e);
+                    println!("🔍 Detalhes do módulo: {:?}", module);
+                    return Err(e.into());
+                }
+            }
             module_order += 1;
 
             // Adiciona vídeos do módulo
@@ -215,11 +301,19 @@ impl<'a> FileSystemScanner<'a> {
         Ok(())
     }
 
-    fn is_video_file(&self, path: &Path) -> bool {
+    pub fn is_video_file(&self, path: &Path) -> bool {
         if let Some(extension) = path.extension() {
             if let Some(ext_str) = extension.to_str() {
-                return VIDEO_EXTENSIONS.contains(&ext_str.to_lowercase().as_str());
+                let ext_lower = ext_str.to_lowercase();
+                let is_video = VIDEO_EXTENSIONS.contains(&ext_lower.as_str());
+                println!("🔍 Verificando arquivo: {} | Extensão: {} | É vídeo: {}", 
+                    path.display(), ext_lower, is_video);
+                return is_video;
+            } else {
+                println!("⚠️ Não foi possível converter extensão para string: {}", path.display());
             }
+        } else {
+            println!("⚠️ Arquivo sem extensão: {}", path.display());
         }
         false
     }

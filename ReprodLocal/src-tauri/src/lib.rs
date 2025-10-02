@@ -20,6 +20,8 @@ use commands::{
     select_course_directory,
     scan_custom_directory,
     update_course_last_accessed,
+    scan_folder_content,
+    get_folder_playlist,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -47,7 +49,9 @@ pub fn run() {
             get_video_status,
             select_course_directory,
             scan_custom_directory,
-            update_course_last_accessed
+            update_course_last_accessed,
+            scan_folder_content,
+            get_folder_playlist
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

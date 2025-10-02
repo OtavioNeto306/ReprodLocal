@@ -78,19 +78,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const handleSelectFolder = async () => {
+    console.log('🔍 Iniciando seleção de pasta...');
     try {
       setIsScanning(true);
+      console.log('📁 Chamando selectCourseDirectory...');
       const selectedPath = await coursesApi.selectCourseDirectory();
+      console.log('📂 Resultado da seleção:', selectedPath);
       
       if (selectedPath) {
-        console.log('Pasta selecionada:', selectedPath);
+        console.log('✅ Pasta selecionada:', selectedPath);
+        console.log('🔄 Escaneando diretório personalizado...');
         const newCourses = await coursesApi.scanCustomDirectory(selectedPath);
+        console.log('📚 Cursos encontrados:', newCourses.length);
         setCourses(newCourses);
+      } else {
+        console.log('❌ Nenhuma pasta foi selecionada');
       }
     } catch (error) {
-      console.error('Erro ao selecionar pasta:', error);
+      console.error('❌ Erro ao selecionar pasta:', error);
     } finally {
       setIsScanning(false);
+      console.log('🏁 Finalizando seleção de pasta');
     }
   };
 

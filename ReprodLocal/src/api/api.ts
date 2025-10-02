@@ -49,6 +49,27 @@ export interface VideoStatus {
   volume: number;
 }
 
+export interface MediaFile {
+  name: string;
+  path: string;
+  file_type: string;
+  size: number;
+  duration?: number;
+}
+
+export interface SubFolder {
+  name: string;
+  path: string;
+  media_count: number;
+}
+
+export interface FolderContent {
+  path: string;
+  media_files: MediaFile[];
+  subfolders: SubFolder[];
+  total_files: number;
+}
+
 // Dados mock temporários para teste
 const mockCourses: Course[] = [
   {
@@ -207,12 +228,51 @@ export const coursesApi = {
     }
   },
 
-  async selectCourseDirectory(): Promise<string | null> {
+
+
+  selectCourseDirectory: async (): Promise<string | null> => {
+    try {
+      console.log('⏳ Aguardando Tauri estar pronto...');
+      await waitForTauri();
+      console.log('🚀 Tauri pronto, invocando select_course_directory...');
+      const result = await invoke<string | null>('select_course_directory');
+      console.log('📋 Resultado do invoke:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ Erro ao selecionar diretório:', error);
+      return null;
+    }
+  }
+};
+
+// API de Pastas
+export const folderApi = {
+  async scanFolderContent(folderPath: string): Promise<FolderContent> {
+    try {
+      await waitForTauri();
+      return await invoke<FolderContent>('scan_folder_content', { folderPath });
+    } catch (error) {
+      console.error('Erro ao escanear conteúdo da pasta:', error);
+      throw new ApiError('Erro ao escanear pasta', 'SCAN_FOLDER_ERROR');
+    }
+  },
+
+  async getFolderPlaylist(folderPath: string): Promise<MediaFile[]> {
+    try {
+      await waitForTauri();
+      return await invoke<MediaFile[]>('get_folder_playlist', { folderPath });
+    } catch (error) {
+      console.error('Erro ao criar playlist da pasta:', error);
+      throw new ApiError('Erro ao criar playlist', 'PLAYLIST_ERROR');
+    }
+  },
+
+  async selectFolder(): Promise<string | null> {
     try {
       await waitForTauri();
       return await invoke<string | null>('select_course_directory');
     } catch (error) {
-      console.error('Erro ao selecionar diretório:', error);
+      console.error('Erro ao selecionar pasta:', error);
       return null;
     }
   }

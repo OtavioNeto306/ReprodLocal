@@ -5,7 +5,11 @@ import { VideoList } from '../components/VideoList';
 import { VideoPlayer } from '../components/VideoPlayer';
 import './Home.css';
 
-export const Home: React.FC = () => {
+interface HomeProps {
+  onNavigateToFolderBrowser?: () => void;
+}
+
+export const Home: React.FC<HomeProps> = ({ onNavigateToFolderBrowser }) => {
   const [selectedCourse, setSelectedCourse] = useState<Course | undefined>();
   const [selectedModule, setSelectedModule] = useState<Module | undefined>();
   const [selectedVideo, setSelectedVideo] = useState<Video | undefined>();
@@ -94,6 +98,15 @@ export const Home: React.FC = () => {
         </div>
 
         <div className="header-right">
+          {onNavigateToFolderBrowser && (
+            <button 
+              className="toggle-button"
+              onClick={onNavigateToFolderBrowser}
+              title="Navegador de Pastas"
+            >
+              📁
+            </button>
+          )}
           <button 
             className="toggle-button"
             onClick={toggleVideoList}

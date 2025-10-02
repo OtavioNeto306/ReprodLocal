@@ -144,19 +144,35 @@ pub async fn get_video_status(_state: State<'_, AppState>) -> Result<Option<Vide
 }
 
 #[tauri::command]
-pub async fn select_course_directory(app_handle: tauri::AppHandle) -> Result<Option<String>, String> {
-    use tauri_plugin_dialog::{DialogExt};
+pub async fn select_course_directory(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    use std::sync::mpsc;
+    use std::time::Duration;
     
-    let folder_path = app_handle.dialog()
+    let (tx, rx) = mpsc::channel();
+    
+    app.dialog()
         .file()
-        .set_title("Selecione a pasta dos cursos")
-        .blocking_pick_folder();
+        .set_title("Selecionar Diretório de Cursos")
+        .pick_folder(move |path| {
+            let _ = tx.send(path);
+        });
     
-    match folder_path {
-        Some(path) => Ok(Some(path.to_string())),
-        None => Ok(None)
+    // Aguarda o resultado com timeout
+    match rx.recv_timeout(Duration::from_secs(60)) {
+        Ok(Some(path)) => {
+            Ok(Some(path.to_string()))
+        },
+        Ok(None) => {
+            Ok(None)
+        },
+        Err(_) => {
+            Err("Timeout ao selecionar diretório".to_string())
+        }
     }
 }
+
+
 
 #[tauri::command]
 pub async fn scan_custom_directory(
@@ -207,4 +223,153 @@ pub fn create_app_state() -> Result<AppState> {
     Ok(AppState {
         db: Mutex::new(db),
     })
+}
+
+#[tauri::command]
+pub async fn scan_folder_content(
+    folder_path: String,
+    state: State<'_, AppState>
+) -> Result<FolderContent, String> {
+    println!("🔍 Escaneando conteúdo da pasta: {}", folder_path);
+    
+    let path = std::path::Path::new(&folder_path);
+    if !path.exists() {
+        return Err(format!("Pasta não encontrada: {}", folder_path));
+    }
+    
+    let db = state.db.lock().map_err(|e| format!("Erro ao acessar banco: {}", e))?;
+    let scanner = FileSystemScanner::new(&*db);
+    
+    let mut media_files = Vec::new();
+    let mut subfolders = Vec::new();
+    
+    // Escanear recursivamente a pasta
+    for entry in walkdir::WalkDir::new(path)
+        .follow_links(false)
+        .into_iter()
+        .filter_map(|e| e.ok()) 
+    {
+        let entry_path = entry.path();
+        
+        if entry_path.is_file() && scanner.is_video_file(entry_path) {
+            if let Some(file_name) = entry_path.file_name().and_then(|n| n.to_str()) {
+                media_files.push(MediaFile {
+                    name: file_name.to_string(),
+                    path: entry_path.to_string_lossy().to_string(),
+                    file_type: get_file_type(entry_path),
+                    size: entry.metadata().map(|m| m.len()).unwrap_or(0),
+                    duration: None, // Pode ser implementado posteriormente
+                });
+            }
+        } else if entry_path.is_dir() && entry_path != path {
+            if let Some(folder_name) = entry_path.file_name().and_then(|n| n.to_str()) {
+                subfolders.push(SubFolder {
+                    name: folder_name.to_string(),
+                    path: entry_path.to_string_lossy().to_string(),
+                    media_count: count_media_files_in_folder(entry_path, &scanner),
+                });
+            }
+        }
+    }
+    
+    // Ordenar arquivos por nome
+    media_files.sort_by(|a, b| a.name.cmp(&b.name));
+    subfolders.sort_by(|a, b| a.name.cmp(&b.name));
+    
+    let total_files = media_files.len();
+    
+    println!("✅ Escaneamento concluído. {} arquivos de mídia e {} subpastas encontrados", 
+             total_files, subfolders.len());
+    
+    Ok(FolderContent {
+        path: folder_path,
+        media_files,
+        subfolders,
+        total_files,
+    })
+}
+
+#[tauri::command]
+pub async fn get_folder_playlist(
+    folder_path: String,
+    state: State<'_, AppState>
+) -> Result<Vec<MediaFile>, String> {
+    println!("🎵 Criando playlist para pasta: {}", folder_path);
+    
+    let path = std::path::Path::new(&folder_path);
+    if !path.exists() {
+        return Err(format!("Pasta não encontrada: {}", folder_path));
+    }
+    
+    let db = state.db.lock().map_err(|e| format!("Erro ao acessar banco: {}", e))?;
+    let scanner = FileSystemScanner::new(&*db);
+    
+    let mut playlist = Vec::new();
+    
+    // Escanear recursivamente todos os arquivos de mídia
+    for entry in walkdir::WalkDir::new(path)
+        .follow_links(false)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        let entry_path = entry.path();
+        
+        if entry_path.is_file() && scanner.is_video_file(entry_path) {
+            if let Some(file_name) = entry_path.file_name().and_then(|n| n.to_str()) {
+                playlist.push(MediaFile {
+                    name: file_name.to_string(),
+                    path: entry_path.to_string_lossy().to_string(),
+                    file_type: get_file_type(entry_path),
+                    size: entry.metadata().map(|m| m.len()).unwrap_or(0),
+                    duration: None,
+                });
+            }
+        }
+    }
+    
+    // Ordenar playlist por caminho para manter ordem hierárquica
+    playlist.sort_by(|a, b| a.path.cmp(&b.path));
+    
+    println!("✅ Playlist criada com {} arquivos", playlist.len());
+    Ok(playlist)
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct FolderContent {
+    pub path: String,
+    pub media_files: Vec<MediaFile>,
+    pub subfolders: Vec<SubFolder>,
+    pub total_files: usize,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct MediaFile {
+    pub name: String,
+    pub path: String,
+    pub file_type: String,
+    pub size: u64,
+    pub duration: Option<f64>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct SubFolder {
+    pub name: String,
+    pub path: String,
+    pub media_count: usize,
+}
+
+fn get_file_type(path: &std::path::Path) -> String {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .unwrap_or("unknown")
+        .to_uppercase()
+}
+
+fn count_media_files_in_folder(folder_path: &std::path::Path, scanner: &FileSystemScanner) -> usize {
+    walkdir::WalkDir::new(folder_path)
+        .follow_links(false)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|entry| entry.path().is_file() && scanner.is_video_file(entry.path()))
+        .count()
 }

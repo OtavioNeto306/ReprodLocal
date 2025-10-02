@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { convertFileSrc } from '@tauri-apps/api/core';
 import { Video, VideoProgress, playerApi, videosApi, utils } from '../api/api';
 import './VideoPlayer.css';
 
@@ -295,9 +296,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           onError={() => setError('Erro ao carregar o vídeo')}
           poster="/video-placeholder.jpg"
         >
-          <source src={`file://${video.path}`} type="video/mp4" />
-          <source src={`file://${video.path}`} type="video/webm" />
-          <source src={`file://${video.path}`} type="video/ogg" />
+          <source src={convertFileSrc(video.path)} type="video/mp4" />
+          <source src={convertFileSrc(video.path)} type="video/webm" />
+          <source src={convertFileSrc(video.path)} type="video/ogg" />
           Seu navegador não suporta o elemento de vídeo.
         </video>
 
