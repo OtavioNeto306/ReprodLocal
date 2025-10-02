@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Course, Module, Video, VideoProgress } from '../api/api';
-import { Sidebar } from '../components/Sidebar';
+import { Course, Module, Video, VideoProgress, FolderContent, MediaFile } from '../api/api';
+import { FolderBrowser } from '../components/FolderBrowser';
 import { VideoList } from '../components/VideoList';
 import { VideoPlayer } from '../components/VideoPlayer';
 import './Home.css';
 
 interface HomeProps {
-  onNavigateToFolderBrowser?: () => void;
+  // Removido onNavigateToFolderBrowser pois agora está integrado
 }
 
-export const Home: React.FC<HomeProps> = ({ onNavigateToFolderBrowser }) => {
-  const [selectedCourse, setSelectedCourse] = useState<Course | undefined>();
-  const [selectedModule, setSelectedModule] = useState<Module | undefined>();
+export const Home: React.FC<HomeProps> = () => {
   const [selectedVideo, setSelectedVideo] = useState<Video | undefined>();
+  const [currentFolderVideos, setCurrentFolderVideos] = useState<Video[]>([]);
+  const [currentFolderPath, setCurrentFolderPath] = useState<string>('');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [videoListCollapsed, setVideoListCollapsed] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
@@ -22,21 +22,40 @@ export const Home: React.FC<HomeProps> = ({ onNavigateToFolderBrowser }) => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
 
-  const handleCourseSelect = (course: Course) => {
-    setSelectedCourse(course);
-    // Limpar seleções anteriores quando trocar de curso
-    setSelectedModule(undefined);
-    setSelectedVideo(undefined);
-  };
-
-  const handleModuleSelect = (module: Module) => {
-    setSelectedModule(module);
-    // Limpar vídeo selecionado quando trocar de módulo
-    setSelectedVideo(undefined);
-  };
-
   const handleVideoSelect = (video: Video) => {
     setSelectedVideo(video);
+  };
+
+  const handleFolderChange = (folderContent: FolderContent, folderPath: string) => {
+    // Converter MediaFile[] para Video[]
+    const videos: Video[] = folderContent.media_files.map((file: MediaFile, index: number) => ({
+      id: `${folderPath}_${index}`,
+      module_id: 0,
+      course_id: 0,
+      name: file.name,
+      path: file.path,
+      duration: file.duration || 0,
+      order_index: index
+    }));
+    
+    setCurrentFolderVideos(videos);
+    setCurrentFolderPath(folderPath);
+    setSelectedVideo(undefined); // Limpar vídeo selecionado ao trocar de pasta
+  };
+
+  const handlePlayFile = (filePath: string) => {
+    // Encontrar o vídeo correspondente ao arquivo selecionado
+    const video = currentFolderVideos.find(v => v.path === filePath);
+    if (video) {
+      setSelectedVideo(video);
+    }
+  };
+
+  const handlePlayPlaylist = (files: string[]) => {
+    // Reproduzir o primeiro arquivo da playlist
+    if (files.length > 0) {
+      handlePlayFile(files[0]);
+    }
   };
 
   const handleVideoComplete = (video: Video) => {
@@ -78,19 +97,13 @@ export const Home: React.FC<HomeProps> = ({ onNavigateToFolderBrowser }) => {
         </div>
 
         <div className="header-center">
-          {selectedCourse && (
+          {currentFolderPath && (
             <div className="breadcrumb">
-              <span className="breadcrumb-item">{selectedCourse.name}</span>
-              {selectedModule && (
-                <>
-                  <span className="breadcrumb-separator">›</span>
-                  <span className="breadcrumb-item">{selectedModule.name}</span>
-                </>
-              )}
+              <span className="breadcrumb-item">📁 {currentFolderPath.split('\\').pop() || currentFolderPath}</span>
               {selectedVideo && (
                 <>
                   <span className="breadcrumb-separator">›</span>
-                  <span className="breadcrumb-item current">{selectedVideo.name}</span>
+                  <span className="breadcrumb-item current">🎬 {selectedVideo.name}</span>
                 </>
               )}
             </div>
@@ -98,20 +111,11 @@ export const Home: React.FC<HomeProps> = ({ onNavigateToFolderBrowser }) => {
         </div>
 
         <div className="header-right">
-          {onNavigateToFolderBrowser && (
-            <button 
-              className="toggle-button"
-              onClick={onNavigateToFolderBrowser}
-              title="Navegador de Pastas"
-            >
-              📁
-            </button>
-          )}
           <button 
             className="toggle-button"
             onClick={toggleVideoList}
             title="Alternar lista de vídeos"
-            disabled={!selectedModule}
+            disabled={currentFolderVideos.length === 0}
           >
             📹
           </button>
@@ -127,13 +131,12 @@ export const Home: React.FC<HomeProps> = ({ onNavigateToFolderBrowser }) => {
 
       {/* Main Content */}
       <main className="main-content">
-        {/* Sidebar */}
+        {/* Folder Browser */}
         <div className={`sidebar-container ${sidebarCollapsed ? 'collapsed' : ''}`}>
-          <Sidebar
-            onCourseSelect={handleCourseSelect}
-            onModuleSelect={handleModuleSelect}
-            selectedCourse={selectedCourse}
-            selectedModule={selectedModule}
+          <FolderBrowser
+            onPlayFile={handlePlayFile}
+            onPlayPlaylist={handlePlayPlaylist}
+            onFolderChange={handleFolderChange}
           />
         </div>
 
@@ -149,7 +152,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigateToFolderBrowser }) => {
         {/* Video List */}
         <div className={`video-list-container ${videoListCollapsed ? 'collapsed' : ''}`}>
           <VideoList
-            module={selectedModule || null}
+            videos={currentFolderVideos}
             selectedVideo={selectedVideo}
             onVideoSelect={handleVideoSelect}
           />
@@ -159,14 +162,14 @@ export const Home: React.FC<HomeProps> = ({ onNavigateToFolderBrowser }) => {
       {/* Status Bar */}
       <footer className="status-bar">
         <div className="status-left">
-          {selectedCourse && (
+          {currentFolderPath && (
             <span className="status-item">
-              📚 {selectedCourse.name}
+              📁 {currentFolderPath}
             </span>
           )}
-          {selectedModule && (
+          {currentFolderVideos.length > 0 && (
             <span className="status-item">
-              📁 {selectedModule.name}
+              🎬 {currentFolderVideos.length} vídeo{currentFolderVideos.length !== 1 ? 's' : ''}
             </span>
           )}
         </div>

@@ -250,7 +250,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         <div className="no-video-selected">
           <div className="no-video-icon">🎬</div>
           <h3>Selecione um vídeo para assistir</h3>
-          <p>Escolha um curso e módulo na barra lateral para começar</p>
+          <p>Navegue pelas pastas e clique em um vídeo para começar</p>
         </div>
       </div>
     );

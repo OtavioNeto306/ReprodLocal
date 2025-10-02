@@ -5,11 +5,13 @@ import './FolderBrowser.css';
 interface FolderBrowserProps {
   onPlayFile: (filePath: string) => void;
   onPlayPlaylist: (files: string[]) => void;
+  onFolderChange?: (folderContent: FolderContent, folderPath: string) => void;
 }
 
 export const FolderBrowser: React.FC<FolderBrowserProps> = ({
   onPlayFile,
-  onPlayPlaylist
+  onPlayPlaylist,
+  onFolderChange
 }) => {
   const [currentPath, setCurrentPath] = useState<string>('');
   const [folderContent, setFolderContent] = useState<FolderContent | null>(null);
@@ -45,6 +47,11 @@ export const FolderBrowser: React.FC<FolderBrowserProps> = ({
       const content = await folderApi.scanFolderContent(path);
       setFolderContent(content);
       setSelectedFiles(new Set());
+      
+      // Notificar a Home sobre a mudança de pasta
+      if (onFolderChange) {
+        onFolderChange(content, path);
+      }
     } catch (err) {
       setError('Erro ao carregar conteúdo da pasta');
       console.error('Erro ao carregar pasta:', err);
@@ -198,15 +205,17 @@ export const FolderBrowser: React.FC<FolderBrowserProps> = ({
             onClick={selectFolder}
             disabled={loading}
           >
-            📁 Nova Pasta
+            📁 Selecionar Pasta
           </button>
-          <button 
-            className="action-btn primary"
-            onClick={playAll}
-            disabled={loading || !folderContent?.media_files.length}
-          >
-            ▶️ Reproduzir Tudo
-          </button>
+          {folderContent?.media_files.length > 0 && (
+            <button 
+              className="action-btn primary"
+              onClick={playAll}
+              disabled={loading}
+            >
+              ▶️ Reproduzir Pasta
+            </button>
+          )}
         </div>
       </div>
 
@@ -214,27 +223,11 @@ export const FolderBrowser: React.FC<FolderBrowserProps> = ({
       {folderContent && (
         <div className="folder-info">
           <div className="folder-stats">
-            <span>{folderContent.total_files} arquivos de mídia</span>
             <span>{folderContent.subfolders.length} subpastas</span>
+            {folderContent.total_files > 0 && (
+              <span>{folderContent.total_files} arquivos de mídia nesta pasta</span>
+            )}
           </div>
-          
-          {selectedFiles.size > 0 && (
-            <div className="selection-actions">
-              <span>{selectedFiles.size} selecionados</span>
-              <button onClick={playSelected} className="play-selected-btn">
-                ▶️ Reproduzir Selecionados
-              </button>
-              <button onClick={clearSelection} className="clear-selection-btn">
-                Limpar
-              </button>
-            </div>
-          )}
-          
-          {folderContent.media_files.length > 0 && (
-            <button onClick={selectAllFiles} className="select-all-btn">
-              Selecionar Todos
-            </button>
-          )}
         </div>
       )}
 
@@ -281,66 +274,12 @@ export const FolderBrowser: React.FC<FolderBrowserProps> = ({
               </div>
             )}
 
-            {/* Arquivos de mídia */}
-            {folderContent.media_files.length > 0 && (
-              <div className="media-files-section">
-                <h4>🎬 Arquivos de Mídia ({folderContent.media_files.length})</h4>
-                <div className="media-files-list">
-                  {folderContent.media_files.map((file: MediaFile) => (
-                    <div 
-                      key={file.path}
-                      className={`media-file-item ${selectedFiles.has(file.path) ? 'selected' : ''}`}
-                    >
-                      <div className="file-checkbox">
-                        <input
-                          type="checkbox"
-                          checked={selectedFiles.has(file.path)}
-                          onChange={() => toggleFileSelection(file.path)}
-                        />
-                      </div>
-                      
-                      <div className="file-icon">
-                        {getFileIcon(file.file_type)}
-                      </div>
-                      
-                      <div 
-                        className="file-info"
-                        onClick={() => onPlayFile(file.path)}
-                      >
-                        <div className="file-name">{file.name}</div>
-                        <div className="file-details">
-                          <span className="file-type">{file.file_type}</span>
-                          <span className="file-size">{formatFileSize(file.size)}</span>
-                          {file.duration && (
-                            <span className="file-duration">
-                              {utils.formatDuration(file.duration)}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <button 
-                        className="play-file-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onPlayFile(file.path);
-                        }}
-                        title="Reproduzir arquivo"
-                      >
-                        ▶️
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Estado vazio */}
-            {folderContent.media_files.length === 0 && folderContent.subfolders.length === 0 && (
-              <div className="empty-folder">
-                <div className="empty-icon">📂</div>
-                <h3>Pasta Vazia</h3>
-                <p>Nenhum arquivo de mídia ou subpasta encontrado</p>
+            {/* Mensagem quando não há subpastas */}
+            {folderContent.subfolders.length === 0 && (
+              <div className="no-folders-message">
+                <div className="no-folders-icon">📁</div>
+                <h4>Nenhuma subpasta encontrada</h4>
+                <p>Esta pasta não contém subpastas para navegar</p>
               </div>
             )}
           </>

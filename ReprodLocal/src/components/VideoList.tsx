@@ -3,13 +3,15 @@ import { Video, VideoProgress, Module, videosApi, utils } from '../api/api';
 import './VideoList.css';
 
 interface VideoListProps {
-  module: Module | null;
+  module?: Module | null; // Manter compatibilidade com uso antigo
+  videos?: Video[]; // Nova prop para vídeos diretos
   selectedVideo?: Video;
   onVideoSelect: (video: Video) => void;
 }
 
 export const VideoList: React.FC<VideoListProps> = ({
   module,
+  videos: directVideos,
   selectedVideo,
   onVideoSelect
 }) => {
@@ -19,13 +21,18 @@ export const VideoList: React.FC<VideoListProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    if (module) {
+    if (directVideos) {
+      // Usar vídeos passados diretamente (modo pasta)
+      setVideos(directVideos);
+      setVideoProgresses(new Map()); // Limpar progressos para vídeos de pasta
+    } else if (module) {
+      // Usar módulo (modo banco de dados)
       loadVideos();
     } else {
       setVideos([]);
       setVideoProgresses(new Map());
     }
-  }, [module]);
+  }, [module, directVideos]);
 
   const loadVideos = async () => {
     if (!module) return;
@@ -96,13 +103,14 @@ export const VideoList: React.FC<VideoListProps> = ({
     return '#6b7280'; // Cinza
   };
 
-  if (!module) {
+  // Se não há módulo nem vídeos diretos, mostra mensagem de pasta vazia
+  if (!module && (!videos || videos.length === 0)) {
     return (
       <div className="video-list-container">
         <div className="no-module-selected">
           <div className="no-module-icon">📁</div>
-          <h3>Selecione um módulo</h3>
-          <p>Escolha um módulo na barra lateral para ver os vídeos</p>
+          <h3>Pasta vazia</h3>
+          <p>Navegue pelas pastas para encontrar vídeos</p>
         </div>
       </div>
     );
@@ -130,17 +138,21 @@ export const VideoList: React.FC<VideoListProps> = ({
     <div className="video-list-container">
       <div className="module-header">
         <div className="module-info">
-          <h2>{module.name}</h2>
+          <h2>{module ? module.name : 'Vídeos da Pasta'}</h2>
           <div className="module-stats">
             <span className="stat-item">
               📹 {stats.total} vídeos
             </span>
-            <span className="stat-item">
-              ✅ {stats.completed} concluídos
-            </span>
-            <span className="stat-item">
-              ⏯️ {stats.inProgress} em progresso
-            </span>
+            {module && (
+              <>
+                <span className="stat-item">
+                  ✅ {stats.completed} concluídos
+                </span>
+                <span className="stat-item">
+                  ⏯️ {stats.inProgress} em progresso
+                </span>
+              </>
+            )}
             {totalDuration > 0 && (
               <span className="stat-item">
                 ⏱️ {utils.formatDuration(totalDuration)}
@@ -149,7 +161,7 @@ export const VideoList: React.FC<VideoListProps> = ({
           </div>
         </div>
 
-        {totalDuration > 0 && (
+        {module && totalDuration > 0 && (
           <div className="module-progress">
             <div className="progress-info">
               <span>Progresso do Módulo</span>
@@ -191,7 +203,7 @@ export const VideoList: React.FC<VideoListProps> = ({
               <>
                 <div className="no-videos-icon">📹</div>
                 <h3>Nenhum vídeo encontrado</h3>
-                <p>Este módulo não contém vídeos</p>
+                <p>Esta pasta não contém vídeos</p>
               </>
             )}
           </div>
