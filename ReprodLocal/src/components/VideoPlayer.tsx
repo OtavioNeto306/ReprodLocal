@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
-import { Video, VideoProgress, playerApi, videosApi, utils } from '../api/api';
+import { Video, VideoProgress, videosApi, utils } from '../api/api';
 import './VideoPlayer.css';
 
 interface VideoPlayerProps {
@@ -28,32 +28,44 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
-  const progressUpdateInterval = useRef<number | null>(null);
   const hideControlsTimeout = useRef<number | null>(null);
 
   useEffect(() => {
     if (video) {
+      // Parar reprodução anterior
+      setIsPlaying(false);
+      setError(null);
+      setLoading(false);
+      
+      // Resetar o player HTML
+      if (videoRef.current) {
+        videoRef.current.pause();
+        videoRef.current.currentTime = 0;
+        videoRef.current.src = '';
+      }
+      
+      // Carregar novo vídeo
       loadVideoProgress();
       resetPlayer();
+      
+      // Configurar novo src do vídeo usando convertFileSrc
+      if (videoRef.current && video.path) {
+        const convertedSrc = convertFileSrc(video.path);
+        
+        videoRef.current.src = convertedSrc;
+        videoRef.current.load();
+      }
     }
     
     return () => {
-      if (progressUpdateInterval.current) {
-        clearInterval(progressUpdateInterval.current);
-      }
       if (hideControlsTimeout.current) {
         clearTimeout(hideControlsTimeout.current);
       }
     };
   }, [video]);
 
-  useEffect(() => {
-    if (isPlaying) {
-      startProgressTracking();
-    } else {
-      stopProgressTracking();
-    }
-  }, [isPlaying]);
+  // Removido o tracking automático da API mock para evitar conflitos
+  // O tempo será gerenciado apenas pelo elemento HTML video
 
   const loadVideoProgress = async () => {
     if (!video) return;
@@ -77,62 +89,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     setDuration(0);
     setError(null);
     setLoading(false);
+    setProgress(null);
+    setIsMarkingComplete(false);
   };
 
-  const startProgressTracking = () => {
-    if (progressUpdateInterval.current) {
-      clearInterval(progressUpdateInterval.current);
-    }
-
-    progressUpdateInterval.current = setInterval(async () => {
-      try {
-        const status = await playerApi.getVideoStatus();
-        if (status) {
-          setCurrentTime(status.current_time);
-          setDuration(status.duration);
-          setVolume(status.volume);
-          setIsPlaying(status.is_playing);
-
-          // Atualizar progresso no banco de dados
-          if (video) {
-            const completed = status.current_time >= status.duration * 0.95; // 95% = completo
-            
-            await videosApi.updateVideoProgress(
-              video.id,
-              status.current_time,
-              status.duration,
-              completed
-            );
-
-            const updatedProgress: VideoProgress = {
-              id: progress?.id || '',
-              video_id: video.id,
-              current_time: status.current_time,
-              duration: status.duration,
-              completed,
-              last_watched: new Date().toISOString()
-            };
-
-            setProgress(updatedProgress);
-            onProgressUpdate?.(video, updatedProgress);
-
-            if (completed && !progress?.completed) {
-              onVideoComplete?.(video);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Erro ao atualizar progresso:', error);
-      }
-    }, 1000);
-  };
-
-  const stopProgressTracking = () => {
-    if (progressUpdateInterval.current) {
-      clearInterval(progressUpdateInterval.current);
-      progressUpdateInterval.current = null;
-    }
-  };
+  // Funções de tracking removidas - agora usamos apenas o elemento HTML video
 
   const handlePlay = async () => {
     if (!video || !videoRef.current) return;
@@ -143,14 +104,29 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     try {
       if (isPlaying) {
         videoRef.current.pause();
-        await playerApi.pauseVideo();
+        setIsPlaying(false);
       } else {
-        await videoRef.current.play();
-        await playerApi.playVideo(video.path);
+        // Garantir que o vídeo está carregado
+        if (videoRef.current.readyState >= 2) {
+          await videoRef.current.play();
+          setIsPlaying(true);
+        } else {
+          // Se não estiver carregado, aguardar
+          videoRef.current.addEventListener('canplay', async () => {
+            try {
+              await videoRef.current!.play();
+              setIsPlaying(true);
+            } catch (err) {
+              console.error('Erro ao reproduzir após carregamento:', err);
+              setError('Erro ao reproduzir vídeo');
+            }
+          }, { once: true });
+        }
       }
     } catch (error) {
       console.error('Erro ao controlar reprodução:', error);
       setError('Erro ao reproduzir vídeo');
+      setIsPlaying(false);
     } finally {
       setLoading(false);
     }
@@ -158,34 +134,69 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   const handleSeek = async (time: number) => {
     try {
-      if (videoRef.current) {
-        videoRef.current.currentTime = time;
+      if (videoRef.current && !isNaN(time) && time >= 0) {
+        // Garantir que o tempo não exceda a duração
+        const videoDuration = videoRef.current.duration || duration;
+        const seekTime = Math.min(time, videoDuration);
+        
+        // Atualizar o elemento HTML video
+        videoRef.current.currentTime = seekTime;
+        
+        // Atualizar estado local imediatamente para feedback visual
+        setCurrentTime(seekTime);
+        
+        // Salvar progresso no banco de dados se o vídeo estiver carregado
+        if (video && videoDuration > 0) {
+          const completed = seekTime >= videoDuration * 0.95;
+          await videosApi.updateVideoProgress(
+            video.id,
+            seekTime,
+            videoDuration,
+            completed
+          );
+          
+          const updatedProgress: VideoProgress = {
+            id: progress?.id || '',
+            video_id: video.id,
+            current_time: seekTime,
+            duration: videoDuration,
+            completed,
+            last_watched: new Date().toISOString()
+          };
+          
+          setProgress(updatedProgress);
+          onProgressUpdate?.(video, updatedProgress);
+        }
       }
-      await playerApi.seekVideo(time);
-      setCurrentTime(time);
     } catch (error) {
       console.error('Erro ao buscar posição:', error);
+      setError('Erro ao navegar no vídeo');
     }
   };
 
   const handleProgressBarClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!duration) return;
+    if (!duration || duration <= 0) return;
 
     const rect = event.currentTarget.getBoundingClientRect();
     const clickX = event.clientX - rect.left;
-    const percentage = clickX / rect.width;
+    
+    // Garantir que o clique está dentro dos limites
+    const clampedX = Math.max(0, Math.min(clickX, rect.width));
+    const percentage = clampedX / rect.width;
     const newTime = percentage * duration;
 
-    handleSeek(newTime);
+    // Validar o tempo calculado
+    if (!isNaN(newTime) && newTime >= 0 && newTime <= duration) {
+      handleSeek(newTime);
+    }
   };
 
-  const handleStop = async () => {
+  const handleStop = () => {
     try {
       if (videoRef.current) {
         videoRef.current.pause();
         videoRef.current.currentTime = 0;
       }
-      await playerApi.stopVideo();
       setIsPlaying(false);
       setCurrentTime(0);
     } catch (error) {
@@ -309,15 +320,65 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           ref={videoRef}
           className="video-element"
           onLoadedMetadata={() => {
-            if (videoRef.current) {
-              setDuration(videoRef.current.duration);
-              videoRef.current.currentTime = progress?.current_time || 0;
-              setCurrentTime(progress?.current_time || 0);
+            if (videoRef.current && !isNaN(videoRef.current.duration)) {
+              const videoDuration = videoRef.current.duration;
+              setDuration(videoDuration);
+              
+              // Restaurar posição salva, mas garantir que não exceda a duração
+              const savedTime = progress?.current_time || 0;
+              const startTime = Math.min(savedTime, videoDuration);
+              
+              videoRef.current.currentTime = startTime;
+              setCurrentTime(startTime);
+              
+              // Atualizar volume
+              videoRef.current.volume = volume / 100;
+              videoRef.current.playbackRate = playbackRate;
             }
           }}
-          onTimeUpdate={() => {
-            if (videoRef.current) {
-              setCurrentTime(videoRef.current.currentTime);
+          onTimeUpdate={async () => {
+            if (videoRef.current && video) {
+              const currentVideoTime = videoRef.current.currentTime;
+              const videoDuration = videoRef.current.duration;
+              
+
+              setCurrentTime(currentVideoTime);
+              
+              // Atualizar duração se mudou
+              if (videoDuration && videoDuration !== duration) {
+                setDuration(videoDuration);
+              }
+              
+              // Salvar progresso a cada 5 segundos para não sobrecarregar
+              if (Math.floor(currentVideoTime) % 5 === 0) {
+                try {
+                  const completed = currentVideoTime >= videoDuration * 0.95;
+                  await videosApi.updateVideoProgress(
+                    video.id,
+                    currentVideoTime,
+                    videoDuration,
+                    completed
+                  );
+                  
+                  const updatedProgress: VideoProgress = {
+                    id: progress?.id || '',
+                    video_id: video.id,
+                    current_time: currentVideoTime,
+                    duration: videoDuration,
+                    completed,
+                    last_watched: new Date().toISOString()
+                  };
+                  
+                  setProgress(updatedProgress);
+                  onProgressUpdate?.(video, updatedProgress);
+                  
+                  if (completed && !progress?.completed) {
+                    onVideoComplete?.(video);
+                  }
+                } catch (error) {
+                  console.error('Erro ao salvar progresso:', error);
+                }
+              }
             }
           }}
           onPlay={() => setIsPlaying(true)}
@@ -328,12 +389,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               onVideoComplete(video);
             }
           }}
-          onError={() => setError('Erro ao carregar o vídeo')}
+          onError={(e) => {
+            console.error('Erro ao carregar vídeo:', e);
+            console.error('Caminho do vídeo:', video?.path);
+            console.error('Src convertido:', videoRef.current?.src);
+            setError('Erro ao carregar o vídeo. Verifique se o arquivo existe.');
+          }}
           poster="/video-placeholder.jpg"
         >
-          <source src={convertFileSrc(video.path)} type="video/mp4" />
-          <source src={convertFileSrc(video.path)} type="video/webm" />
-          <source src={convertFileSrc(video.path)} type="video/ogg" />
           Seu navegador não suporta o elemento de vídeo.
         </video>
 
