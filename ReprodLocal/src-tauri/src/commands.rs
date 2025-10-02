@@ -1,4 +1,4 @@
-use crate::db::{Database, Course, Module, Video, VideoProgress};
+use crate::db::{Database, Course, Module, Video, VideoProgress, UserNote, VideoBookmark, UserSettings, ActivityLog};
 use crate::fs::{FileSystemScanner, get_default_course_directories};
 use tauri::State;
 use std::path::PathBuf;
@@ -103,6 +103,106 @@ pub async fn play_video(
     println!("Reproduzindo vídeo: {} (tempo: {:?})", video_path, start_time);
     Ok(())
 }
+
+// ===== COMANDOS DE CONCLUSÃO DE VÍDEOS =====
+
+#[tauri::command]
+pub async fn mark_video_completed(
+    video_id: String,
+    state: State<'_, AppState>
+) -> Result<(), String> {
+    let db = state.db.lock().map_err(|e| format!("Erro ao acessar banco: {}", e))?;
+    
+    db.mark_video_completed(&video_id, true)
+        .map_err(|e| format!("Erro ao marcar vídeo como concluído: {}", e))?;
+    
+    // Registrar atividade
+    let activity = ActivityLog {
+        id: Uuid::new_v4().to_string(),
+        activity_type: "video_completed".to_string(),
+        entity_id: video_id,
+        entity_type: "video".to_string(),
+        details: Some("Vídeo marcado como concluído manualmente".to_string()),
+        created_at: Utc::now(),
+    };
+    
+    db.log_activity(&activity)
+        .map_err(|e| format!("Erro ao registrar atividade: {}", e))?;
+    
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn mark_video_incomplete(
+    video_id: String,
+    state: State<'_, AppState>
+) -> Result<(), String> {
+    let db = state.db.lock().map_err(|e| format!("Erro ao acessar banco: {}", e))?;
+    
+    db.mark_video_completed(&video_id, false)
+        .map_err(|e| format!("Erro ao marcar vídeo como incompleto: {}", e))?;
+    
+    // Registrar atividade
+    let activity = ActivityLog {
+        id: Uuid::new_v4().to_string(),
+        activity_type: "video_marked_incomplete".to_string(),
+        entity_id: video_id,
+        entity_type: "video".to_string(),
+        details: Some("Vídeo marcado como incompleto".to_string()),
+        created_at: Utc::now(),
+    };
+    
+    db.log_activity(&activity)
+        .map_err(|e| format!("Erro ao registrar atividade: {}", e))?;
+    
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_completed_videos(
+    course_id: Option<String>,
+    state: State<'_, AppState>
+) -> Result<Vec<(Video, VideoProgress)>, String> {
+    let db = state.db.lock().map_err(|e| format!("Erro ao acessar banco: {}", e))?;
+    
+    db.get_completed_videos(course_id.as_deref())
+        .map_err(|e| format!("Erro ao buscar vídeos concluídos: {}", e))
+}
+
+#[tauri::command]
+pub async fn get_incomplete_videos(
+    course_id: Option<String>,
+    state: State<'_, AppState>
+) -> Result<Vec<(Video, Option<VideoProgress>)>, String> {
+    let db = state.db.lock().map_err(|e| format!("Erro ao acessar banco: {}", e))?;
+    
+    db.get_incomplete_videos(course_id.as_deref())
+        .map_err(|e| format!("Erro ao buscar vídeos incompletos: {}", e))
+}
+
+#[tauri::command]
+pub async fn get_course_completion_stats(
+    course_id: String,
+    state: State<'_, AppState>
+) -> Result<(i32, i32, i32), String> {
+    let db = state.db.lock().map_err(|e| format!("Erro ao acessar banco: {}", e))?;
+    
+    db.get_course_completion_stats(&course_id)
+        .map_err(|e| format!("Erro ao obter estatísticas de conclusão: {}", e))
+}
+
+#[tauri::command]
+pub async fn get_video_by_path(
+    video_path: String,
+    state: State<'_, AppState>
+) -> Result<Option<Video>, String> {
+    let db = state.db.lock().map_err(|e| format!("Erro ao acessar banco: {}", e))?;
+    
+    db.get_video_by_path(&video_path)
+        .map_err(|e| format!("Erro ao buscar vídeo por caminho: {}", e))
+}
+
+
 
 #[tauri::command]
 pub async fn pause_video(_state: State<'_, AppState>) -> Result<(), String> {
@@ -219,6 +319,11 @@ fn get_db_path() -> PathBuf {
 pub fn create_app_state() -> Result<AppState> {
     let db_path = get_db_path();
     let db = Database::new(&db_path)?;
+    
+    // Inicializar configurações padrão se necessário
+    if let Err(e) = db.initialize_default_settings() {
+        eprintln!("⚠️ Aviso: Erro ao inicializar configurações padrão: {}", e);
+    }
     
     Ok(AppState {
         db: Mutex::new(db),
@@ -372,4 +477,291 @@ fn count_media_files_in_folder(folder_path: &std::path::Path, scanner: &FileSyst
         .filter_map(|e| e.ok())
         .filter(|entry| entry.path().is_file() && scanner.is_video_file(entry.path()))
         .count()
+}
+
+// ========== COMANDOS PARA ANOTAÇÕES ==========
+
+#[tauri::command]
+pub async fn create_user_note(
+    video_id: String,
+    course_id: String,
+    module_id: String,
+    timestamp: f64,
+    title: String,
+    content: String,
+    note_type: String,
+    state: State<'_, AppState>
+) -> Result<String, String> {
+    let db = state.db.lock().map_err(|e| format!("Erro ao acessar banco: {}", e))?;
+    
+    let note = UserNote {
+        id: Uuid::new_v4().to_string(),
+        video_id: Some(video_id),
+        course_id: Some(course_id),
+        module_id: Some(module_id),
+        timestamp: Some(timestamp),
+        title,
+        content,
+        note_type,
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
+    };
+    
+    db.create_user_note(&note).map_err(|e| format!("Erro ao criar anotação: {}", e))?;
+    
+    // Log da atividade
+    let activity = ActivityLog {
+        id: Uuid::new_v4().to_string(),
+        activity_type: "note_created".to_string(),
+        entity_id: note.id.clone(),
+        entity_type: "note".to_string(),
+        details: Some(format!("Anotação criada: {}", note.title)),
+        created_at: Utc::now(),
+    };
+    db.log_activity(&activity).ok(); // Não falhar se o log der erro
+    
+    Ok(note.id)
+}
+
+#[tauri::command]
+pub async fn update_user_note(
+    note_id: String,
+    title: String,
+    content: String,
+    state: State<'_, AppState>
+) -> Result<(), String> {
+    let db = state.db.lock().map_err(|e| format!("Erro ao acessar banco: {}", e))?;
+    
+    // Buscar a nota existente para manter os outros campos
+    let notes = db.get_all_notes().map_err(|e| format!("Erro ao buscar anotações: {}", e))?;
+    let mut note = notes.into_iter()
+        .find(|n| n.id == note_id)
+        .ok_or("Anotação não encontrada")?;
+    
+    note.title = title;
+    note.content = content;
+    note.updated_at = Utc::now();
+    
+    db.update_user_note(&note).map_err(|e| format!("Erro ao atualizar anotação: {}", e))?;
+    
+    // Log da atividade
+    let activity = ActivityLog {
+        id: Uuid::new_v4().to_string(),
+        activity_type: "note_updated".to_string(),
+        entity_id: note.id,
+        entity_type: "note".to_string(),
+        details: Some(format!("Anotação atualizada: {}", note.title)),
+        created_at: Utc::now(),
+    };
+    db.log_activity(&activity).ok();
+    
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn delete_user_note(
+    note_id: String,
+    state: State<'_, AppState>
+) -> Result<(), String> {
+    let db = state.db.lock().map_err(|e| format!("Erro ao acessar banco: {}", e))?;
+    
+    db.delete_user_note(&note_id).map_err(|e| format!("Erro ao deletar anotação: {}", e))?;
+    
+    // Log da atividade
+    let activity = ActivityLog {
+        id: Uuid::new_v4().to_string(),
+        activity_type: "note_deleted".to_string(),
+        entity_id: note_id,
+        entity_type: "note".to_string(),
+        details: Some("Anotação deletada".to_string()),
+        created_at: Utc::now(),
+    };
+    db.log_activity(&activity).ok();
+    
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_notes_by_video(
+    video_id: String,
+    state: State<'_, AppState>
+) -> Result<Vec<UserNote>, String> {
+    let db = state.db.lock().map_err(|e| format!("Erro ao acessar banco: {}", e))?;
+    db.get_notes_by_video(&video_id).map_err(|e| format!("Erro ao buscar anotações: {}", e))
+}
+
+#[tauri::command]
+pub async fn get_notes_by_course(
+    course_id: String,
+    state: State<'_, AppState>
+) -> Result<Vec<UserNote>, String> {
+    let db = state.db.lock().map_err(|e| format!("Erro ao acessar banco: {}", e))?;
+    db.get_notes_by_course(&course_id).map_err(|e| format!("Erro ao buscar anotações: {}", e))
+}
+
+#[tauri::command]
+pub async fn get_all_notes(state: State<'_, AppState>) -> Result<Vec<UserNote>, String> {
+    let db = state.db.lock().map_err(|e| format!("Erro ao acessar banco: {}", e))?;
+    db.get_all_notes().map_err(|e| format!("Erro ao buscar anotações: {}", e))
+}
+
+// ========== COMANDOS PARA BOOKMARKS ==========
+
+#[tauri::command]
+pub async fn create_video_bookmark(
+    video_id: String,
+    timestamp: f64,
+    title: String,
+    description: Option<String>,
+    state: State<'_, AppState>
+) -> Result<String, String> {
+    let db = state.db.lock().map_err(|e| format!("Erro ao acessar banco: {}", e))?;
+    
+    let bookmark = VideoBookmark {
+        id: Uuid::new_v4().to_string(),
+        video_id,
+        timestamp,
+        title,
+        description,
+        created_at: Utc::now(),
+    };
+    
+    db.create_video_bookmark(&bookmark).map_err(|e| format!("Erro ao criar bookmark: {}", e))?;
+    
+    // Log da atividade
+    let activity = ActivityLog {
+        id: Uuid::new_v4().to_string(),
+        activity_type: "bookmark_created".to_string(),
+        entity_id: bookmark.id.clone(),
+        entity_type: "bookmark".to_string(),
+        details: Some(format!("Bookmark criado: {}", bookmark.title)),
+        created_at: Utc::now(),
+    };
+    db.log_activity(&activity).ok();
+    
+    Ok(bookmark.id)
+}
+
+#[tauri::command]
+pub async fn delete_video_bookmark(
+    bookmark_id: String,
+    state: State<'_, AppState>
+) -> Result<(), String> {
+    let db = state.db.lock().map_err(|e| format!("Erro ao acessar banco: {}", e))?;
+    
+    db.delete_video_bookmark(&bookmark_id).map_err(|e| format!("Erro ao deletar bookmark: {}", e))?;
+    
+    // Log da atividade
+    let activity = ActivityLog {
+        id: Uuid::new_v4().to_string(),
+        activity_type: "bookmark_deleted".to_string(),
+        entity_id: bookmark_id,
+        entity_type: "bookmark".to_string(),
+        details: Some("Bookmark deletado".to_string()),
+        created_at: Utc::now(),
+    };
+    db.log_activity(&activity).ok();
+    
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_video_bookmarks(
+    video_id: String,
+    state: State<'_, AppState>
+) -> Result<Vec<VideoBookmark>, String> {
+    let db = state.db.lock().map_err(|e| format!("Erro ao acessar banco: {}", e))?;
+    db.get_video_bookmarks(&video_id).map_err(|e| format!("Erro ao buscar bookmarks: {}", e))
+}
+
+// ========== COMANDOS PARA CONFIGURAÇÕES ==========
+
+#[tauri::command]
+pub async fn set_user_setting(
+    key: String,
+    value: String,
+    setting_type: String,
+    state: State<'_, AppState>
+) -> Result<(), String> {
+    let db = state.db.lock().map_err(|e| format!("Erro ao acessar banco: {}", e))?;
+    
+    let setting = UserSettings {
+        id: Uuid::new_v4().to_string(),
+        setting_key: key,
+        setting_value: value,
+        setting_type,
+        updated_at: Utc::now(),
+    };
+    
+    db.set_user_setting(&setting).map_err(|e| format!("Erro ao salvar configuração: {}", e))?;
+    
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_user_setting(
+    key: String,
+    state: State<'_, AppState>
+) -> Result<Option<UserSettings>, String> {
+    let db = state.db.lock().map_err(|e| format!("Erro ao acessar banco: {}", e))?;
+    db.get_user_setting(&key).map_err(|e| format!("Erro ao buscar configuração: {}", e))
+}
+
+#[tauri::command]
+pub async fn get_all_user_settings(state: State<'_, AppState>) -> Result<Vec<UserSettings>, String> {
+    let db = state.db.lock().map_err(|e| format!("Erro ao acessar banco: {}", e))?;
+    db.get_all_user_settings().map_err(|e| format!("Erro ao buscar configurações: {}", e))
+}
+
+#[tauri::command]
+pub async fn initialize_default_settings(state: State<'_, AppState>) -> Result<(), String> {
+    let db = state.db.lock().map_err(|e| format!("Erro ao acessar banco: {}", e))?;
+    db.initialize_default_settings().map_err(|e| format!("Erro ao inicializar configurações: {}", e))
+}
+
+// ========== COMANDOS PARA LOG DE ATIVIDADES ==========
+
+#[tauri::command]
+pub async fn get_recent_activities(
+    limit: usize,
+    state: State<'_, AppState>
+) -> Result<Vec<ActivityLog>, String> {
+    let db = state.db.lock().map_err(|e| format!("Erro ao acessar banco: {}", e))?;
+    db.get_recent_activities(limit).map_err(|e| format!("Erro ao buscar atividades: {}", e))
+}
+
+#[tauri::command]
+pub async fn get_activities_by_type(
+    activity_type: String,
+    limit: usize,
+    state: State<'_, AppState>
+) -> Result<Vec<ActivityLog>, String> {
+    let db = state.db.lock().map_err(|e| format!("Erro ao acessar banco: {}", e))?;
+    db.get_activities_by_type(&activity_type, limit).map_err(|e| format!("Erro ao buscar atividades: {}", e))
+}
+
+// ========== COMANDO PARA LOG MANUAL DE ATIVIDADE ==========
+
+#[tauri::command]
+pub async fn log_user_activity(
+    activity_type: String,
+    entity_id: String,
+    entity_type: String,
+    details: String,
+    state: State<'_, AppState>
+) -> Result<(), String> {
+    let db = state.db.lock().map_err(|e| format!("Erro ao acessar banco: {}", e))?;
+    
+    let activity = ActivityLog {
+        id: Uuid::new_v4().to_string(),
+        activity_type,
+        entity_id,
+        entity_type,
+        details: Some(details),
+        created_at: Utc::now(),
+    };
+    
+    db.log_activity(&activity).map_err(|e| format!("Erro ao registrar atividade: {}", e))?;
+    
+    Ok(())
 }

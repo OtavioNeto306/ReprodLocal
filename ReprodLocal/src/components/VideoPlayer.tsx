@@ -24,6 +24,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [isMarkingComplete, setIsMarkingComplete] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
@@ -235,8 +236,42 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     setIsFullscreen(!isFullscreen);
   };
 
-  const formatTime = (seconds: number) => {
-    return utils.formatDuration(seconds);
+  const formatTime = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleMarkComplete = async () => {
+    if (!video) return;
+    
+    setIsMarkingComplete(true);
+    try {
+      if (progress?.completed) {
+        await videosApi.markVideoIncomplete(video.id);
+      } else {
+        await videosApi.markVideoCompleted(video.id);
+      }
+      
+      // Recarrega o progresso do vídeo
+      const updatedProgress = await videosApi.getVideoProgress(video.id);
+      setProgress(updatedProgress);
+      
+      // Notifica o componente pai sobre a atualização
+      if (onProgressUpdate && updatedProgress) {
+        onProgressUpdate(video, updatedProgress);
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar status de conclusão:', error);
+      setError('Erro ao atualizar status de conclusão');
+    } finally {
+      setIsMarkingComplete(false);
+    }
   };
 
   const getProgressPercentage = () => {
@@ -379,6 +414,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 className="volume-slider"
               />
             </div>
+
+            <button 
+              className="control-button completion-button"
+              onClick={handleMarkComplete}
+              disabled={isMarkingComplete}
+              title={progress?.completed ? 'Marcar como incompleto' : 'Marcar como concluído'}
+            >
+              {isMarkingComplete ? '⏳' : progress?.completed ? '✅' : '⭕'}
+            </button>
 
             <button 
               className="control-button"

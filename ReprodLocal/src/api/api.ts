@@ -335,6 +335,106 @@ export const videosApi = {
       });
       setTimeout(() => resolve(recentPairs), 300);
     });
+  },
+
+  // Novas funções para gerenciar conclusão de vídeos
+  async markVideoCompleted(videoId: string): Promise<void> {
+    await waitForTauri();
+    try {
+      await invoke('mark_video_completed', { videoId });
+    } catch (error) {
+      console.warn('Erro ao marcar vídeo como concluído:', error);
+      // Atualiza dados mock
+      const progressIndex = mockVideoProgress.findIndex(p => p.video_id === videoId);
+      if (progressIndex >= 0) {
+        mockVideoProgress[progressIndex].completed = true;
+        mockVideoProgress[progressIndex].last_watched = new Date().toISOString();
+      }
+    }
+  },
+
+  async markVideoIncomplete(videoId: string): Promise<void> {
+    await waitForTauri();
+    try {
+      await invoke('mark_video_incomplete', { videoId });
+    } catch (error) {
+      console.warn('Erro ao marcar vídeo como incompleto:', error);
+      // Atualiza dados mock
+      const progressIndex = mockVideoProgress.findIndex(p => p.video_id === videoId);
+      if (progressIndex >= 0) {
+        mockVideoProgress[progressIndex].completed = false;
+        mockVideoProgress[progressIndex].last_watched = new Date().toISOString();
+      }
+    }
+  },
+
+  async getCompletedVideos(courseId?: string): Promise<[Video, VideoProgress][]> {
+    await waitForTauri();
+    try {
+      return await invoke('get_completed_videos', { courseId });
+    } catch (error) {
+      console.warn('Usando dados mock para vídeos concluídos:', error);
+      // Retorna dados mock filtrados
+      const completedProgress = mockVideoProgress.filter(p => p.completed);
+      return completedProgress.map(progress => {
+        const video = mockVideos.find(v => v.id === progress.video_id);
+        if (video && (!courseId || video.course_id === courseId)) {
+          return [video, progress];
+        }
+        return null;
+      }).filter(Boolean) as [Video, VideoProgress][];
+    }
+  },
+
+  async getIncompleteVideos(courseId?: string): Promise<[Video, VideoProgress | null][]> {
+    await waitForTauri();
+    try {
+      return await invoke('get_incomplete_videos', { courseId });
+    } catch (error) {
+      console.warn('Usando dados mock para vídeos incompletos:', error);
+      // Retorna dados mock filtrados
+      return mockVideos
+        .filter(video => !courseId || video.course_id === courseId)
+        .map(video => {
+          const progress = mockVideoProgress.find(p => p.video_id === video.id && !p.completed);
+          return [video, progress || null];
+        });
+    }
+  },
+
+  async getCourseCompletionStats(courseId: string): Promise<{ total: number; completed: number; inProgress: number }> {
+    await waitForTauri();
+    try {
+      const result = await invoke('get_course_completion_stats', { courseId }) as [number, number, number];
+      const [total, completed, inProgress] = result;
+      return { total, completed, inProgress };
+    } catch (error) {
+      console.warn('Usando dados mock para estatísticas de conclusão:', error);
+      // Calcula estatísticas mock
+      const courseVideos = mockVideos.filter(v => v.course_id === courseId);
+      const total = courseVideos.length;
+      const completed = courseVideos.filter(video => {
+        const progress = mockVideoProgress.find(p => p.video_id === video.id);
+        return progress?.completed;
+      }).length;
+      const inProgress = courseVideos.filter(video => {
+        const progress = mockVideoProgress.find(p => p.video_id === video.id);
+        return progress && !progress.completed && progress.current_time > 0;
+      }).length;
+      
+      return { total, completed, inProgress };
+    }
+  },
+
+  async getVideoByPath(filePath: string): Promise<Video | null> {
+    await waitForTauri();
+    try {
+      return await invoke('get_video_by_path', { filePath });
+    } catch (error) {
+      console.warn('Usando dados mock para busca por caminho:', error);
+      // Busca nos dados mock
+      return mockVideos.find(v => v.path === filePath) || null;
+    }
   }
 };
 

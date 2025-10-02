@@ -329,33 +329,6 @@ impl<'a> FileSystemScanner<'a> {
         Ok(all_courses)
     }
 
-    pub fn get_video_info(&self, video_path: &Path) -> Result<VideoInfo> {
-        if !video_path.exists() {
-            return Err(anyhow!("Arquivo de vídeo não encontrado: {}", video_path.display()));
-        }
-
-        let metadata = std::fs::metadata(video_path)?;
-        let file_size = metadata.len();
-        
-        // Por enquanto, retorna informações básicas
-        // Futuramente pode integrar com ffprobe para obter duração, resolução, etc.
-        Ok(VideoInfo {
-            path: video_path.to_path_buf(),
-            file_size,
-            duration: None,
-            width: None,
-            height: None,
-        })
-    }
-}
-
-#[derive(Debug)]
-pub struct VideoInfo {
-    pub path: PathBuf,
-    pub file_size: u64,
-    pub duration: Option<f64>,
-    pub width: Option<u32>,
-    pub height: Option<u32>,
 }
 
 pub fn get_default_course_directories() -> Vec<PathBuf> {
