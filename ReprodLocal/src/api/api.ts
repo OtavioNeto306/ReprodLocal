@@ -457,66 +457,6 @@ export const videosApi = {
       // Busca nos dados mock
       return mockVideos.find(v => v.path === filePath) || null;
     }
-  }
-};
-
-// Estado simulado do player
-let mockPlayerStatus: VideoStatus = {
-  is_playing: false,
-  current_time: 0,
-  duration: 0,
-  volume: 1.0
-};
-
-// API do Player de Vídeo
-export const playerApi = {
-  async playVideo(videoPath: string, startTime?: number): Promise<void> {
-    return new Promise(resolve => {
-      mockPlayerStatus.is_playing = true;
-      mockPlayerStatus.current_time = startTime || 0;
-      mockPlayerStatus.duration = 1800; // 30 minutos simulados
-      console.log(`Reproduzindo vídeo: ${videoPath}`);
-      setTimeout(() => resolve(), 200);
-    });
-  },
-
-  async pauseVideo(): Promise<void> {
-    return new Promise(resolve => {
-      mockPlayerStatus.is_playing = false;
-      console.log('Vídeo pausado');
-      setTimeout(() => resolve(), 100);
-    });
-  },
-
-  async resumeVideo(): Promise<void> {
-    return new Promise(resolve => {
-      mockPlayerStatus.is_playing = true;
-      console.log('Vídeo retomado');
-      setTimeout(() => resolve(), 100);
-    });
-  },
-
-  async seekVideo(time: number): Promise<void> {
-    return new Promise(resolve => {
-      mockPlayerStatus.current_time = time;
-      console.log(`Buscando para: ${time}s`);
-      setTimeout(() => resolve(), 100);
-    });
-  },
-
-  async stopVideo(): Promise<void> {
-    return new Promise(resolve => {
-      mockPlayerStatus.is_playing = false;
-      mockPlayerStatus.current_time = 0;
-      console.log('Vídeo parado');
-      setTimeout(() => resolve(), 100);
-    });
-  },
-
-  async getVideoStatus(): Promise<VideoStatus | null> {
-    return new Promise(resolve => {
-      setTimeout(() => resolve({ ...mockPlayerStatus }), 100);
-    });
   },
 
   // ========== FUNÇÕES PARA ANOTAÇÕES ==========
@@ -535,7 +475,7 @@ export const playerApi = {
 
     try {
       await waitForTauri();
-      const result = await invoke('create_user_note', params);
+      const result = await invoke<string>('create_user_note', params);
       console.log('✅ API createNote - Resultado:', result);
       return result;
     } catch (error) {
@@ -628,6 +568,66 @@ export const playerApi = {
       console.warn('Erro ao buscar bookmarks do vídeo:', error);
       return [];
     }
+  }
+};
+
+// Estado simulado do player
+let mockPlayerStatus: VideoStatus = {
+  is_playing: false,
+  current_time: 0,
+  duration: 0,
+  volume: 1.0
+};
+
+// API do Player de Vídeo
+export const playerApi = {
+  async playVideo(videoPath: string, startTime?: number): Promise<void> {
+    return new Promise(resolve => {
+      mockPlayerStatus.is_playing = true;
+      mockPlayerStatus.current_time = startTime || 0;
+      mockPlayerStatus.duration = 1800; // 30 minutos simulados
+      console.log(`Reproduzindo vídeo: ${videoPath}`);
+      setTimeout(() => resolve(), 200);
+    });
+  },
+
+  async pauseVideo(): Promise<void> {
+    return new Promise(resolve => {
+      mockPlayerStatus.is_playing = false;
+      console.log('Vídeo pausado');
+      setTimeout(() => resolve(), 100);
+    });
+  },
+
+  async resumeVideo(): Promise<void> {
+    return new Promise(resolve => {
+      mockPlayerStatus.is_playing = true;
+      console.log('Vídeo retomado');
+      setTimeout(() => resolve(), 100);
+    });
+  },
+
+  async seekVideo(time: number): Promise<void> {
+    return new Promise(resolve => {
+      mockPlayerStatus.current_time = time;
+      console.log(`Buscando para: ${time}s`);
+      setTimeout(() => resolve(), 100);
+    });
+  },
+
+  async stopVideo(): Promise<void> {
+    return new Promise(resolve => {
+      mockPlayerStatus.is_playing = false;
+      mockPlayerStatus.current_time = 0;
+      console.log('Vídeo parado');
+      setTimeout(() => resolve(), 100);
+    });
+  },
+
+  async getVideoStatus(): Promise<VideoStatus | null> {
+    return new Promise(resolve => {
+      setTimeout(() => resolve({ ...mockPlayerStatus }), 100);
+    });
   }
 };
 

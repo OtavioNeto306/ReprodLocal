@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { Video, VideoProgress, videosApi, utils } from '../api/api';
 import VideoNotes from './VideoNotes';
+import NotesSidebar from './NotesSidebar';
 import './VideoPlayer.css';
 
 interface VideoPlayerProps {
@@ -27,6 +28,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [playbackRate, setPlaybackRate] = useState(1);
   const [isMarkingComplete, setIsMarkingComplete] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+  const [showNotesSidebar, setShowNotesSidebar] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
@@ -313,7 +315,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   return (
     <div 
       ref={playerRef}
-      className={`video-player-container ${isFullscreen ? 'fullscreen' : ''}`}
+      className={`video-player-container ${isFullscreen ? 'fullscreen' : ''} ${showNotesSidebar ? 'with-notes-sidebar' : ''}`}
       onMouseMove={handleMouseMove}
     >
       <div className="video-info">
@@ -512,6 +514,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
             <button 
               className="control-button"
+              onClick={() => setShowNotesSidebar(true)}
+              title="Abrir sidebar de anotações"
+            >
+              📋
+            </button>
+
+            <button 
+              className="control-button"
               onClick={toggleFullscreen}
             >
               {isFullscreen ? '🗗' : '⛶'}
@@ -537,11 +547,21 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
       {showNotes && (
         <VideoNotes 
+          video={video}
           videoId={video.id} 
           currentTime={currentTime}
-          onSeek={handleSeek}
+          onSeekTo={handleSeek}
         />
       )}
+
+      <NotesSidebar
+        videoId={video.id}
+        videoName={video.name}
+        currentTime={currentTime}
+        onSeek={handleSeek}
+        isOpen={showNotesSidebar}
+        onClose={() => setShowNotesSidebar(false)}
+      />
     </div>
   );
 };

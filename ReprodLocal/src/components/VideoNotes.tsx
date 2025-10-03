@@ -4,11 +4,12 @@ import './VideoNotes.css';
 
 interface VideoNotesProps {
   video: Video;
+  videoId: string;
   currentTime: number;
   onSeekTo: (time: number) => void;
 }
 
-const VideoNotes: React.FC<VideoNotesProps> = ({ video, currentTime, onSeekTo }) => {
+const VideoNotes: React.FC<VideoNotesProps> = ({ video, videoId, currentTime, onSeekTo }) => {
   const [notes, setNotes] = useState<UserNote[]>([]);
   const [bookmarks, setBookmarks] = useState<VideoBookmark[]>([]);
   const [activeTab, setActiveTab] = useState<'notes' | 'bookmarks'>('notes');
@@ -27,7 +28,7 @@ const VideoNotes: React.FC<VideoNotesProps> = ({ video, currentTime, onSeekTo })
 
   const loadNotes = async () => {
     try {
-      const videoNotes = await videosApi.getNotesByVideo(video.id);
+      const videoNotes = await videosApi.getNotesByVideo(videoId);
       setNotes(videoNotes);
     } catch (error) {
       console.error('Erro ao carregar anotações:', error);
@@ -36,7 +37,7 @@ const VideoNotes: React.FC<VideoNotesProps> = ({ video, currentTime, onSeekTo })
 
   const loadBookmarks = async () => {
     try {
-      const videoBookmarks = await videosApi.getVideoBookmarks(video.id);
+      const videoBookmarks = await videosApi.getVideoBookmarks(videoId);
       setBookmarks(videoBookmarks);
     } catch (error) {
       console.error('Erro ao carregar bookmarks:', error);
@@ -47,7 +48,7 @@ const VideoNotes: React.FC<VideoNotesProps> = ({ video, currentTime, onSeekTo })
     if (!newNote.title.trim() || !newNote.content.trim()) return;
 
     const noteData = {
-      video_id: video.id,
+      video_id: videoId,
       course_id: video.course_id.toString(),
       module_id: video.module_id.toString(),
       timestamp: currentTime,
@@ -98,7 +99,7 @@ const VideoNotes: React.FC<VideoNotesProps> = ({ video, currentTime, onSeekTo })
 
     try {
       await videosApi.createBookmark(
-        video.id,
+        videoId,
         currentTime,
         newBookmark.title,
         newBookmark.description

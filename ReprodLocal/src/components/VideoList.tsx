@@ -95,6 +95,20 @@ export const VideoList: React.FC<VideoListProps> = ({
     return ext || 'VIDEO';
   };
 
+  const abbreviateVideoName = (name: string, maxLength: number = 35) => {
+    if (name.length <= maxLength) return name;
+    
+    // Remove extensão se presente
+    const nameWithoutExt = name.replace(/\.[^/.]+$/, '');
+    
+    // Se ainda for muito longo, abrevia
+    if (nameWithoutExt.length > maxLength) {
+      return nameWithoutExt.substring(0, maxLength - 3) + '...';
+    }
+    
+    return nameWithoutExt;
+  };
+
   const getProgressColor = (progress: VideoProgress) => {
     if (progress.completed) return '#10b981'; // Verde
     if (progress.current_time > 0) return '#f59e0b'; // Amarelo
@@ -229,7 +243,7 @@ export const VideoList: React.FC<VideoListProps> = ({
                 </div>
 
                 <div className="video-details">
-                  <h3 className="video-name">{video.name}</h3>
+                  <h3 className="video-name" title={video.name}>{abbreviateVideoName(video.name)}</h3>
                   
                   <div className="video-meta">
                     {progress && (

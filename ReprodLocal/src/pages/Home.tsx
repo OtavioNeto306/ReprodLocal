@@ -191,22 +191,6 @@ export const Home: React.FC<HomeProps> = () => {
           </span>
         </div>
       </footer>
-
-      {/* Keyboard Shortcuts Help */}
-      <div className="keyboard-shortcuts" title="Atalhos do teclado">
-        <div className="shortcut-item">
-          <kbd>Ctrl</kbd> + <kbd>1</kbd> - Alternar barra lateral
-        </div>
-        <div className="shortcut-item">
-          <kbd>Ctrl</kbd> + <kbd>2</kbd> - Alternar lista de vídeos
-        </div>
-        <div className="shortcut-item">
-          <kbd>Ctrl</kbd> + <kbd>D</kbd> - Alternar tema
-        </div>
-        <div className="shortcut-item">
-          <kbd>Espaço</kbd> - Play/Pause
-        </div>
-      </div>
     </div>
   );
 };
